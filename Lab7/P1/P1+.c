@@ -9,7 +9,8 @@ void cauta_depozit(int cod, float cantitate);
 int depozit_descr;
 FILE *instructions_descr;
 const int OFFSET = sizeof(int) + sizeof(float);
-
+struct flock lacat_blocaj;
+struct flock lacat_deblocaj;
 int main(int argc, char **argv) {
 	
 	if(argc < 3) {
@@ -23,18 +24,16 @@ int main(int argc, char **argv) {
 		perror("Eroare la deschiderea fisierului de instructiuni: ");
 		exit(1);
 	}
-	
-	struct flock lacat_blocaj;
+
 	lacat_blocaj.l_whence = SEEK_SET;
 	lacat_blocaj.l_start = -OFFSET;
 	lacat_blocaj.l_type = F_WRLCK;
 	lacat_blocaj.l_len = OFFSET;
 	
-	struct flock lacat_deblocaj;
 	lacat_deblocaj.l_whence = SEEK_SET;
 	lacat_deblocaj.l_start = -OFFSET;
 	lacat_deblocaj.l_type = F_UNLCK;
-	lacat_deblocaj.l_len = OFFSET
+	lacat_deblocaj.l_len = OFFSET;
 		
 	while(1) {
 		
@@ -75,30 +74,95 @@ void cauta_depozit(int cod, float cantitate) {
 		exit(3);	
 	}
 	
-	int gasit = 0;
-	
 	while(1) {
+		
 		int depozit_cod_produs, depozit_cod_r;
 		depozit_cod_r = read(depozit_descr, &depozit_cod_produs, sizeof(int));
 		if(depozit_cod_r == 0) {
-			break;
+			
+			
+			printf("[ProcesID:%d] Nu am gasit produsul cu codul %d, incercam sa-l adaugam!\n", getpid(), cod);	
+			// AICI FACEM BLOCAJ
+			lacat_blocaj.l_start = 0;
+			if(-1 == fcntl(depozit_descr, F_SETLKW, &lacat_blocaj)) {
+				if(errno == EINTR) {
+					fprintf(stderr,"[ProcesID:%d] Eroare, apelul fcntl a fost intrerupt de un semnal...", getpid());
+				}
+				else {
+					fprintf(stderr,"[ProcesID:%d] Eroare la blocaj...", getpid());
+				}
+				perror("\tMotivul erorii");
+				exit(4);
+			} else {
+				printf("[ProcesID:%d] Blocaj reusit!\n", getpid());
+			}
+			lacat_blocaj.l_start = -OFFSET;
+			// VERIFIC DACA S-A ADAUGAT CEVA
+			char ch;
+			int bytesRead;
+			if(-1 == (bytesRead = read(depozit_descr, &ch, 1))) {
+				perror("Eroare la citirea din fisierul de depozit: ");
+				exit(2);
+			}
+			int shouldBreak = 0;
+			if(-1 == lseek(depozit_descr, -bytesRead, SEEK_CUR)) {
+				perror("Eroare la repozitionare! ");
+				exit(3);	
+			}
+			if(bytesRead != 0) {
+				lacat_deblocaj.l_start = 0;
+			} else {
+				shouldBreak = 1;
+				if(cantitate < 0.0) {
+					fprintf(stderr, "Eroare! S-a incercat o operatie de extragere din produsul cu codul %d (care nu exista in depozit) \n", cod);
+					exit(7);
+				} else {
+					if(-1 == write(depozit_descr, &cod, sizeof(int))) {
+						perror("Eroare la scrierea in fisierul depozit: ");
+						exit(5);
+					} 
+					if(-1 == write(depozit_descr, &cantitate, sizeof(float))) {
+						perror("Eroare la scrierea in fisierul depozit: ");
+						exit(5);
+					} 
+				}
+			}
+			
+			if(-1 == fcntl(depozit_descr, F_SETLKW, &lacat_deblocaj)) {
+				if(errno == EINTR) {
+					fprintf(stderr,"[ProcesID:%d] Eroare, apelul fcntl a fost intrerupt de un semnal...", getpid());
+				}
+				else {
+					fprintf(stderr,"[ProcesID:%d] Eroare la deblocaj...", getpid());
+				}
+				perror("\tMotivul erorii");
+				exit(4);
+			} else {
+				printf("[ProcesID:%d] Deblocaj reusit!\n", getpid());
+			}
+			
+			lacat_deblocaj.l_start = -OFFSET;
+			if(shouldBreak) {
+				break;
+			}
+			
+			
+			
 		}
+			
 		if(depozit_cod_r == -1) {
 			perror("Eroare la citirea din fisierul depozit! ");
 			exit(2);
 		}
+		
 		float depozit_cantitate;
 		depozit_cod_r = read(depozit_descr, &depozit_cantitate, sizeof(float));
-		if(depozit_cod_r == 0) {
-			break;
-		}
 		if(depozit_cod_r == -1) {
 			perror("Eroare la citirea din fisierul depozit! ");
 			exit(2);
 		}
 		
 		if(depozit_cod_produs == cod) {
-			gasit = 1;
 			printf("[ProcesID:%d] Am gasit produsul cu codul %d, ii facem actualizare!\n", getpid(), cod);
 			
 			// AICI FACEM BLOCAJ
@@ -150,45 +214,4 @@ void cauta_depozit(int cod, float cantitate) {
 		}
 	}
 	
-	if(gasit == 0) {
-		printf("[ProcesID:%d] Nu am gasit produsul cu codul %d, incercam sa-l adaugam!\n", getpid(), cod);	
-		if(-1 == lseek(depozit_descr, 0, SEEK_END)) {
-			perror("Eroare la repozitionare! ");
-			exit(3);	
-		}
-		
-		// AICI FACEM BLOCAJ
-		lacat_blocaj.l_start = 0;
-		if(-1 == fcntl(depozit_descr, F_SETLKW, &lacat_blocaj)) {
-			if(errno == EINTR) {
-				fprintf(stderr,"[ProcesID:%d] Eroare, apelul fcntl a fost intrerupt de un semnal...", getpid());
-			}
-			else {
-				fprintf(stderr,"[ProcesID:%d] Eroare la blocaj...", getpid());
-			}
-				perror("\tMotivul erorii");
-				exit(4);
-		} else {
-			printf("[ProcesID:%d] Blocaj reusit!\n", getpid());
-		}
-		lacat_blocaj.l_start = -OFFSET;
-		
-		// AICI VERIFIC DACA S-A MAI ADAUGAT CEVA INTRE TIMP
-		char ch;
-		int bytesRead;
-		if(-1 == (bytesRead = read(depozit_descr, &ch, 1))
-		if(cantitate < 0.0) {
-			fprintf(stderr, "Eroare! S-a incercat o operatie de extragere din produsul cu codul %d (care nu exista in depozit) \n", cod);
-			exit(7);
-		} else {
-			if(-1 == write(depozit_descr, &cod, sizeof(int))) {
-				perror("Eroare la scrierea in fisierul depozit: ");
-				exit(5);
-			} 
-			if(-1 == write(depozit_descr, &cantitate, sizeof(float))) {
-				perror("Eroare la scrierea in fisierul depozit: ");
-				exit(5);
-			} 
-		}
-	}
 }

@@ -129,6 +129,7 @@ void secventa_de_actualizari(int n, char* nr[])
 		lacat.l_whence = SEEK_SET;
 		lacat.l_start = 0;
 		lacat.l_len = sizeof(float);
+		
 		if(-1 == fcntl(fd,F_SETLKW, &lacat)) { 
 			if(errno == EINTR) {
 				fprintf(stderr,"[ProcesID:%d] Eroare, apelul fcntl a fost intrerupt de un semnal...", getpid());
@@ -142,6 +143,7 @@ void secventa_de_actualizari(int n, char* nr[])
 		else {
 			printf("[ProcesID:%d] Blocaj reusit!\n", getpid());
 		}
+		
 		if(-1 == lseek(fd, 0, SEEK_SET) ) {
 			perror("Eroare la repozitionarea in fisierul de date, pentru citire...");  
 			exit(8); 
@@ -158,7 +160,7 @@ void secventa_de_actualizari(int n, char* nr[])
 			printf("Afisati pe ecran ce doriti sa faceti mai departe: \n");
 			while(raspuns != '1' && raspuns != '2') {
 				printf("Varianta 1 : Se refuza complet operatia de extragere\n");
-				printf("Varianta 2 : Se exrage toata cantitatea care a ramas in stoc\n");
+				printf("Varianta 2 : Se extrage toata cantitatea care a ramas in stoc\n");
 				printf("Ce alegeti?: ");
 				scanf("%c", &raspuns);
 			}

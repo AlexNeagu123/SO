@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
+
 void cauta_depozit(int cod, float cantitate);
 int depozit_descr;
 FILE *instructions_descr;
@@ -55,6 +56,7 @@ int main(int argc, char **argv) {
 			perror("Eroare la citirea din fisierul de instructiuni: ");
 			exit(2);
 		}
+		
 		printf("[ProcesID:%d] Se proceseaza operatia de adaugare/extragere de %f din produsul cu codul %d\n", getpid(), cantitate, cod_produs);
 		
 		if(-1 == fcntl(depozit_descr, F_SETLKW, &lacat_blocaj)) {
@@ -151,6 +153,7 @@ void cauta_depozit(int cod, float cantitate) {
 			perror("Eroare la repozitionare! ");
 			exit(3);	
 		}
+		
 		if(cantitate < 0.0) {
 			fprintf(stderr, "Eroare! S-a incercat o operatie de extragere din produsul cu codul %d (care nu exista in depozit) \n", cod);
 			exit(7);
