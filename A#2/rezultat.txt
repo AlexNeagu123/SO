@@ -1,0 +1,7 @@
+Numarul 4 are divizorii: 1 2 4 
+Numarul 6 are divizorii: 1 2 3 6 
+Numarul 3 este prim.
+Numarul 7 este prim.
+Numarul 10 are divizorii: 1 2 5 10 
+Numarul 12 are divizorii: 1 2 3 4 6 12 
+Numarul 54 are divizorii: 1 2 3 6 9 18 27 54 
