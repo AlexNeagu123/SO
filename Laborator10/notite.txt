@@ -1,0 +1,52 @@
+Familia de primitive exec : Inlocuieste programul rulat in cadrul procesului apelant cu alt program specificat prin numele fisierului executabil
+Noul program reacopera vechiul program in procesul executat
+Noul program mosteneste caracteristici de la vechiul program. Ex. PID-ul (este acelasi proces totusi)
+Doua categorii de functii exec (ele sunt 7) :
+1) Cu numar variabil de parametri (Dam parametri pe rand fiecare variabila) 
+2) Cu numar fix de parametri (Dam parametru un vector)
+
+--- int execl(char *ref, char *argv0, ... , char* argvN)
+--- int execv(char *ref, char *argv[])
+ref - argument obligatoriu - numele programului!
+Putem specifica *ref prin cale absoluta sau relativa!
+atgv0/argv[0] - numele afisat al procesului transformat (CONVENTIE): trebuie sa coincida cu ref
+argvN/ultimul element din argv[] - trebuie sa fie NULL!
+ref = numele real al fisierului executabil,
+argv[0] = numele afisat de comenzi precum ps al procesului "transformat" 
+
+--int execle(char* ref, char* argv0, ..., char* argvN, char *env[])
+-- int execve(char *ref, char* argv[], char* env[])
+
+Apare env = parametru ce permite transmiterea unui set de variabile de mediu!
+ultimul element din env[] = NULL!
+
+EXECVE este apel de sistem, celelalte primitive sunt wrappere din Standard C Library!
+
+-- int execlp(char *ref, char* argv0, ..., char* argvN)
+-- int execvp(char *ref, char *argv[])
+
+Fix ca prima pereche doar ca daca ref nu este specificat cu "/", el va fi cautat in directoarele din variabila de mediu PATH!
+
+
+----- Functie extensie a GNU - execvpe(char *ref, char *argv[], char *env[]) - fix ca execvp doar ca apare si acel environment caracteristic perechii 2 de primitive!
+
+Valoare returnata: 
+
+In caz de esec: -1
+In caz de succes, apelurile exec nu returneaza! procesul apelant nu mai exista in aceasta forma ci este reacoperit!
+
+Noul program are acelasi PID, aceeasi prioritate, acelasi proces parinte, aceeasi descriptori de fisiere deschise etc.
+EXCEPTII:
+Proprietarul efectiv - daca este setat bitul setuid, proprietarul fisierului devine proprietarul efectiv al procesului
+Grupul proprietar efectiv - la fel ca mai sus doar ca se schimba grupul
+Semnale - sunt reinstalate handlere pentru semnalele corupte
+Descriptorii de fisiere - daca s-a apelat functia fcntl unde bitul FD_CLOEXEC a fost setat pentru un descriptor --> descriptorul respectiv este inchis la exec! ceilalti descriptori raman DESCHISI!
+
+NOTA : 
+In cazul scrierilor in fisiere cu primitivele de standard library care folosesc niste buffere(fprintf, fwrite) - bufferul NU se scrie automat in fisier in momentul apelului exec!
+Bufferul se scrie in fisier doar cand se umple sau cand se intalneste \n. Se poate totusi forta si cu functia fflush din C!
+
+dup2 - primitiva utila petru duplicarea descriptorilor de fisiere + redirectarea fluxurilor standard de IO!
+
+Interesant: Se poate reacoperi un program si printr-un script! Scriptul trebuie sa inceapa cu o linie de forma: #!interpreter
+Se inlocuieste programu cu o instanta a interpretorului specificat pe prima linie din script! Aceasta instanta executa scriptul linie cu linie.

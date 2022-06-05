@@ -1,0 +1,14 @@
+Sunt procesul ultim 31, avand PID-ul: 6757, parintele are PID-ul: 6756.
+Sunt procesul 21, avand PID-ul: 6756, parintele are PID-ul: 6755, iar fiul creat are PID-ul: 6757 si s-a terminat cu codul: 3.
+Sunt procesul ultim 32, avand PID-ul: 6758, parintele are PID-ul: 6756.
+Sunt procesul 21, avand PID-ul: 6756, parintele are PID-ul: 6755, iar fiul creat are PID-ul: 6758 si s-a terminat cu codul: 3.
+Sunt procesul ultim 33, avand PID-ul: 6759, parintele are PID-ul: 6756.
+Sunt procesul 21, avand PID-ul: 6756, parintele are PID-ul: 6755, iar fiul creat are PID-ul: 6759 si s-a terminat cu codul: 3.
+Sunt procesul 11, avand PID-ul: 6755, parintele are PID-ul: 4999, iar fiul creat are PID-ul: 6756 si s-a terminat cu codul: 2.
+Sunt procesul ultim 34, avand PID-ul: 6761, parintele are PID-ul: 6760.
+Sunt procesul 22, avand PID-ul: 6760, parintele are PID-ul: 6755, iar fiul creat are PID-ul: 6761 si s-a terminat cu codul: 3.
+Sunt procesul ultim 35, avand PID-ul: 6762, parintele are PID-ul: 6760.
+Sunt procesul 22, avand PID-ul: 6760, parintele are PID-ul: 6755, iar fiul creat are PID-ul: 6762 si s-a terminat cu codul: 3.
+Sunt procesul ultim 36, avand PID-ul: 6763, parintele are PID-ul: 6760.
+Sunt procesul 22, avand PID-ul: 6760, parintele are PID-ul: 6755, iar fiul creat are PID-ul: 6763 si s-a terminat cu codul: 3.
+Sunt procesul 11, avand PID-ul: 6755, parintele are PID-ul: 4999, iar fiul creat are PID-ul: 6760 si s-a terminat cu codul: 2.

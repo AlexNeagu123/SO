@@ -1,0 +1,84 @@
+Semnal Unix - intrerupere software generata de producerea unui anumit eveniment transmita unui anumit proces
+Orice semnal are un tip(numar intreg pozitiv) care codifica cauza sa si un proces DESTINATIE
+Dupa ce a fost generat, semnalul este pus in coada de semnale a sistemului dupa care extras si transmis procesului destinatie
+Exista o exceptie: Daca procesul destinatie blocheaza primirea acelui semnal, semnalul se transmite abia la deblocare
+Atunci cand procesul destinatar primeste semnalul el intrerupe executia si executa o actiune numita handler de semnal - atasata tipului de semnal primit
+Evenimente care genereaza semnale: 
+1) Erori (in procesul destinatie) - programul a facut o operatie invalida si nu poate continua. Doar erorile care pot aparea in orice punct al programului
+2) Evenimente Externe (procesului destinatar) - operatii I/O sau actiunile altor procese. Ex. sosirea datelor pe un pipe, terminarea unui proces fiu, suspendarea programului de user
+3) Cerere explicita - generarea unui semnal de catre un alt proces prin apelul kill
+
+Semnal Sincron - generat de o anumita actiune specifica in program si este livrat in timpul acelei actiuni
+Semnal Asincron - generat de un eveniment din afara zonei de control a procesului. Momentul de timp nu poate fi anticipat
+
+La livrarea semnalului catre proces, acesta este inrerupt si exista 3 variante: 
+1) Se executa acea actiune implicita a semnalului
+2) Se ignora semnalul
+3) Se executa o functie handler utilizator
+
+Tipuri predefinite de semnale:
+1) Semnale standard de eroare: SIGFPE, SIGILL, SIGSEGV..
+2) Semnale de terminare a proceselor: SIGHUP, SIGINT, SIGQUIT..
+3) Semnale de alarma: SIGALRM, SIGVTALRM, SIGPROF
+4) Semnale asincrone I/O : SIGIO, SIGURG
+5) Semnale pentru controlul proceselor : SIGCHLD, SIGCONT...
+6) Alte tipuri de semnale SIGPIPE, SIGUSR1
+
+Comanda kill -l - afiseaza numerele asociate tuturor semnalelor existente
+Pagina man 7 signal - contine descrierea semnalelor
+O parte din semnale depind si de suportul ofertit de parte de hardware!
+
+Apelul de sistem kill - utilizat pentru a cere explicit generarea unui semnal. Interfata functiei: 
+int kill(int pid, int id-signal) 
+
+pid = PID-ul procesului destinatar
+id-signal = tipul semnalului
+valoare de return - 0/1
+
+kill(pid, 0) - util pentru testarea  validitatii PID-ului respectiv (Daca este valid se returneaza 0, -1 in caz contrar)
+Cerere explicita de generare a unui semnal se poate folosi comanda kill in terminal: kill -semnal pid
+
+Primitiva raise(int id-signal) - procesul isi transmite lui insusi semnalul de tipul id-signal
+Echivalent cu kill(getpid(), id-signal)
+Actiunea asociata unui semnal poate fi: 
+1) O actiune implicita (specifica sistemului de operare respectiv)
+2) Ignorarea semnalului
+3) Handler Propriu definit de programator
+
+Coruperea unui semnal - setarea unui handler propriu pentru acel tip de semnal
+Semnalele SIGKILL sau SIGSTOP nu pot fi corupte, ignorate sau blocate!
+
+Pentru specificarea actiunii asociate unui semnal se poate folosi primitiva signal sau sigaction
+sighandler_t signal(int id-signal, sighandler_t, action)
+
+id-signal - tipul semnalului caruia i se asociaza actiunea
+action - handlerul de semnal ce se asociaza semnalului. Poate fi numele unei functii definite de programator SAU SIG_DFL(actiunea implicita, stabilita de sistem), SIG_IGN(procesul va ignora semnalul)
+Se returneaza: Vechiul handler pentru semnalul specificat sau constanta simbolica SIG_ERR in caz de eroare!
+
+Pana la o noua corupere, mereu cand procesul va receptiona semnalul id-signal se va executa handlerul de semnal setatat!
+Nu este o buna practica ca procesul sa ignore semnalele. Cel mai bine, daca el nu doreste sa primeasca semnale pe o portiune de cod - LE BLOCHEAZA!
+
+DACA argumentul action este numele unei functii definite de utilizator, prototipul sighandler_t trebuie sa fie definit asa: typedef void (*sighandler_t)(int)
+Argumentul int din functie are ca valoare numarul semnalului care a cauzat executia acestui handler 
+
+Cum utilizam aceasta functie?
+1) Handleru notifica primirea semnalului prin setarea unei variabile globale si dupa returneaza imediat. In bucla principala, acea variabila va fi periodic verificata.
+2) Terminam executia procesului sau transferam executia intr-un punct in care procesul poate sa recupereze starea 
+
+Handlerele pentru semnale pot fi apelate asincron - in timpul executiei unui semnal primit acesta poate fi intrerupt de receptia altui semnal diferit de primul.
+Important: Primirea unui semnal poate intrerupe nu doar procesul ci chiar executia handlerului unui alt semnal
+
+Blocarea semnalelor: Procesul spune sistemului de operare sa nu transmita semnale (ele raman in coada de semnale) pana procesul va debloca.
+Blocarea semnalelor se poate face cu functia sigprocmask ce utilizeaza structura sigset_t(masca pe biti ce semnifica setul de semnale ales pentru blocare)
+Cu functia sigpending se poate verifica existenta unor semnale blocate (care asteapta sa fie deblocate).
+
+-----------------------------------------------------------------------------
+
+Daca aplicatia este influentata de evenimente externe sau foloseste semnalele in scop de sincronizare, exista puncte din program in care ea doar trebuie sa astepte semnale
+Se poate folosi functia pause() care suspenda exeutia programului pana la sosirea unui semnal
+Aceasta functie poate duce uneori la efecte nedorite pentru ca cea mai mare parte din program este ocupata de handlere care se comporta asincron
+Cea mai indicata modalitate de a astepta semnal este cu functia int sigsuspend(const sigset_t *set) 
+Se inlocuieste masca curenta de semnale cu masca set si apoi se suspenda executia procesului pana la receptionarea unui semnal (un semnal care nu este blocat)
+Masca de semnale ramane la valoarea setata in set pana cand functia sigsuspend() returneaza. In acel moment se revine la vechea masca de semne!
+
+Se returneaza 0/-1 - succes/esec. Se seteaza si variabila errno

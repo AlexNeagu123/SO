@@ -1,0 +1,66 @@
+program = fisier executabil obtinut in urma compilarii depozitat pe disk
+proces = program aflat in curs de executie. Caracterizat prin : durata de timp, zona de memorie alocata, timp alocat de procesor
+nucleul - pastreaza evidenta proceselor din sistem printr-o tabela a proceselor active
+Informatii despre procese:
+PID - identidicatorul procesului
+PPID - PID-ul procesului parinte
+UID - utiliatorul proprietar REAL al procesului
+GID - id-ul grupului proprietar REAL
+EUID si EGID - ca cele de mai sus doar ca EFECTIV
+starea procesului: 
+	1) ready
+	2) running
+	3) waiting
+	4) finished
+linia de comanda
+variabilele transmise de catre parinte
+
+Functii pentru aflarea pid/ppid -> getpid() si getppid()
+De asemenea -> getuid, getgid, geteuid, getegid
+
+Functii de suspendare a executiei pe o durata de timp:
+	unsigned int sleep(unsigned int nr_secunde); (pentru secunde)
+	int usleep(useconds_t nr_microseconde); (pentru microsecunde)
+	int nanosleep(const struct timespec *req, struct timespec *rem); (pentru nanosecunde)
+Pot fi si intarzieri cauzate de precizia ceasului hardware
+Functia de terminare a unui proces: void exit(int status)
+Functia de terminare anormala a unui proces: void abort(); -> deblocheaza si livreaza semnalul SIGABRT
+Functi system - permite lansarea de comenzi UNIX dintr-un program C. system(comanda). Se creeaza un proces noi.
+
+Functia fork : pid_t fork() -> Se creaza o copie a procesului apelant si ambele vor continua executia din momentul ramas.
+Difera pidurile proceselor. 
+Procesul apelant - PARINTELE procesului nou creat. 
+Procesul nou creat - FIUL procesului apelant
+
+Observatie: procesul creat dupa apelul fork are aceleasi valori ale variabilelor ca procesul parinte, aceleasi fisiere deschise si etc. Mai departe, fiecare proces lucreaza insa pe propria zona de memorie.
+Modificarile din fiu nu sunt vizibile pentru tata. NU avem memorie partajata. Se folosesc pagini COW (copy-on-write).
+fork() returneaza -1 in caz de eroare. In caz de succes: 
+				      1) Pentru procesul apelant returneaza PID-ul procesului fiu
+				      2) Pentru procesul fiu, 0
+Un singur proces cu PID-ul 0 -> Radacina arborelui proceselor care se creaza la bootarea sistemului LINUX
+Un proces poate avea mai multi fii la un moment dat.
+Terminare normala: Se petrece la intalnirea primitivei exit.
+Procesul e trecut in starea finished, se inchid toate fisierele deschise, se dealoca zonele de memorie alocate procesului respectiv. Codul de terminare este salvat in tabela de procese, codul de terminare
+este furnizat parintelui procesului.
+Punct de sincronizare - Punct in care 2 procese isi intalnesc activitatea si au o executie simultana
+Exemplu des intalnit de punct de sincronizare: Procesul parinte are nevoie de codul de terminare a procesului fiu. 
+Trebuie stabilit un punct de sincronizare intr sfarsitul programului fiu si punctul din programul parinte in care e nevoie de acea valoare.
+
+Functia wait: pid_t wait(int* stat_loc);
+Efect: se suspenda activitatea procesului apelant pana in momentul in care unul dintre fii procesului (oricare) returneaza codul de terminare/terminare anormala printr-un semnal.
+Daca exista deja fiu care si-a stopat activitatea - se returneaza imediat 
+
+wait returnaza: PID-ul procesului fiu. In valoarea stat_loc se memoreaza: codul de terminare a procesului fiu (octetul high al acelui int) daca s-a oprit normal.
+									  codul semnalului (octetul low al acelui int) daca un fiu a fost stopat de un semnal
+Daca nu exista procese fii se returneaza -1.
+Pentru valoarea din stat_loc se folosesc diverse macrouri: WIFEXITED, WEXITSTATUS ...
+Daca procesul parinte se termina inaintea procesului fiu - procesului fiu i se atribuie ca parinte procesul init (cu PID-ul 1)
+Daca un proces se termina inaintea parintelui el devine zombie
+Mai exista primitiva waitpid prin care putem specifica pid-ul procesului care dorim sa fie finalizat.
+return x in int main - echivalent cu exit(x)
+
+La problema N childs: 
+Putem secvential sa creem fiecare fiu in parte si sa asteptam terminarea lui: fork() .. wait(NULL) la finalul buclei for!
+Putem paralel sa facem acelasi lucru de mai sus lucrand cu doua bucle for!
+Mapare anonima: Nu are nevoie de descriptor de fisier si nici de offset. Se initializeaza cu 0 acea memorie obtinuta
+man 7 signal - informatii despre semnale

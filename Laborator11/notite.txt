@@ -1,0 +1,87 @@
+Tipuri de comunicatie intre procese: 
+Pipe = Canal
+
+a) Memorie Partajata (Eg. Fisiere Mapate in Memorie)
+b) Schimb de mesaje 
+	- comunicatie locala (canale anonime/interne, canale cu nume/externe)
+	- comunicatie la distanta (socketuri)
+Intr-un canal de comunicatie, la un capat se scriu mesaje iar la celalalt capat se citesc. Se comporta ca o stiva. 
+Doua tipuri de canale: anonime, creat in memoria interna a sistemului 
+		       cu nume, au asociat cate un nume - reprezentat prin fisier de tip fifo, pastrat in sistemul de fisiere
+		       fisier fifo = pipe cu nume
+
+CANALE ANONIME
+
+int pipe(int *p). p - trebuie sa fie un vector. Dupa apelul functiei, vectorul asta va fi prelucrat astfel incat :  p[0] = fileDescriptor pentru fisierul citit, p[1] = fileDescriptor pentru capatul de scriere.
+ReturnValues - 0/-1.
+Aceste Canale Anonime pot fi utilizate doar pentru comunicatia intre procese inrudite prin fork/exec.
+De ce? Pai la apelul fork procesul fiu se cloneaza din procesul parinte, astfel avand la dispozitie valorile din p[0] si p[1]. 
+De asemenea, si in cazul apelurilor exec la fel are loc transmiterea descriptorilor canalului. Ne amintim ca descriptorii fisierelor deschise se mostenesc prin exec!
+Restrictie: Daca un proces inchide unul din capetele canalului anonim, NU mai exist nici o posibilitate de a-l redeschide
+
+Pentru scriere/citire se poate utiliza fie API-ul POSIX fie biblioteca STDIO!
+Care e faza cu canelele cu nume?
+
+Cum se creaza unul?
+int mkfifo(char *nume, int permisiuni)
+nume = numele fisierului de tip fifo
+permisiuni = permisiunile pt user, group, others al fisierului
+returnValues - 0/-1
+
+Ce se intampla? Se creaza un canal cu nume, dar FARA a fi deschis la ambele capete.
+Nota: Se poate folosi si primitiva mknod cu flagul S_IFIFO sau chiar in terminal comenzile mkfifo si mknod.
+Ce e misto la ele?
+Scrierea/Citirea din canal se efectueaza fix ca la fisierele obisnuite. Mai intai se deschide explicit fisierul la capatul de citire/scriere pentru a obtine descriptorul necesar.
+Apoi se scrie/citeste din el cu descriptorul respectiv comenzile de citire/scriere. La sfarsit se inchide descriptorul.
+Acest tip de canal nu este anonim, deci poate fi utilizat pentru comunicatie intre TOATE procesele care cunosc NUMELE fisierului fifo respectiv.
+
+Dechiderea unui fifo poate fi read-write, read-only, write-only. 
+Observatie Importanta: Deschiderea se face in mod blocant - daca un proces incearca sa deschida un capat al canalului - apelul functiei ramane blocat pana cand un alt proces va deschide celalalt capat!
+Deci trebuie neaparat sa se faca o sincronizare intre procese!
+Un astfel de canal cu nume este creat tot in memoria principala - NU pe disk!
+Informatia scrisa pe un fisier fifo se pastreaza din momentul scrierii pana in momentul cand ambele procese temina accesul la acel canal, inchizand capetele canalului. 
+Acest lucru are loc bineinteles doar daca anumita informatie a ramas in canal si nu a fost citita!
+
+Diferente canale cu nume vs canale anonime.
+
+- capetele canalelor cu nume trebuie deschise explicit
+- orice proces poate deschide un canal fifo, indiferent de legatura de rudenie
+- la canalele fifo, dupa ce un proces inchide un capat de canal il poate redeschide 
+
+Unitatea de informatie: Octetul.
+Ambele tipuri de canale sunt unidirectionate - la un capat se scrie/la celalalt capat se citeste informatia
+Capacitatea unui canal: limitata de o dimensiune maxima
+Ambele tipuri de canale functioneaza ca o COADA - citirea este insotita de DISTRUGEREA informatiei citite
+Nu exista notiunea de offset pentru aceste fisiere - functioneaza ca o coada fifo
+
+Apelul read va citi din canal si va returna imediat numarul de octeti cititi din canal (daca este suficienta informatie acolo).
+Daca nu exista suficienta informatie in fisierul fifo, apelul read ramane blocat pana cand va avea suficienta informatie
+Caz exceptie READ: Daca un proces incearca sa citeasca din canal, dar restul proceselor nu mai sunt capabile sa scrie (deoarece au inchis capetele) atunci read returneaza 0! Adica EOF!
+
+Pentru a citi EOF ---> toate procesele trebuie sa inchida canalul de scriere
+La scriere, daca este suficient spatiu in canal, apelul write returneaza numarul de bytes scrisi!
+Daca insa canalul este plin, apelul write ramane blocat pana cand va fi suficient spatiu liber
+Caz de exceptie WRITE: Daca un proces incearca sa scrie in canal dar niciun alt proces nu este capabil sa citeasca din canal(au inchis capatul) atunci sistemul trimite semnalul SIGPIPE, ce inseamna 
+terminarea fortata a procesului
+
+Se pot folosi si functii din stdio dar MARE ATENTIE la golirea bufferului cu ajutorul functiei fflush! Se poate intampla sa scriem textul respectiv fara sa golim bufferul, iar procesul care incearca sa
+citeasca va astepta incontinuu.
+
+Am observat mai sus ca comportamentul default setat de lacate este tip blocant. La scriere, citire, deschidere de canal toate functioneaza in mod blocant. Se asteapta pana se pot realiza. Se poate
+modifica oricare comportament din astea 3, astfel incat in caz de esec sa se returneze eroare sau sa nu se mai astepte.
+
+Cum se seteaza? Prin atributul O_NONBLOCK pe care il punem atunci cand apelam primitiva open sau fcntl.
+Exista mai multe sabloane de comunicare intre procese prin pipeuri.
+
+1) Unul la Unul (un singur scriitor pentru un singur cititor). Cel mai utilizat in practica si simplu de scris.
+2) Unul la Multi (un singur scriitor pentru mai multi cititori). Pot aparea erori de sincronizare deoarece citirea nu se face atomic. 
+(Exemplu atunci cand este vorba de mesaje de lungime variabila).
+   Alta problema care apare in acest sablon este destinatarul mesajelor. Daca mesajul poate fi citit de oricine, nu e problema. Daca insa avem un proces specific care dorim sa citeasca?
+3) Multi la Unul (mai multi scriitori pentru un singur cititor)
+La fel ca la sablonul 2) Lungimea variabila a mesajelor poate reprezenta o problema de sincronizare.
+De asemenea, expeditorul mesajului poate reprezenta un semn de intrebare. Daca procesul care citeste accepta de la orice expeditor mesaje, nu e problema. Daca insa el doreste sa citeasca mesajul unui 
+proces specific? Raspuns : se formateaza mesajele de forma MESAJ = HEADER + MESAJ PROPRIU ZIS. Header in acest caz reprezinta idul procesului care a scris mesajul.
+4) Multi la multi (Multi scriitori pentru Multi cititori) - Aceleasi probleme de mai sus care trebuie tratate cu grija. 
+
+Nota : Uneori se prefera inlocuirea unui canal unu la multi cu mai multe canale unu la unu. Se poate proceda asa pentru orice sablon intre 2-4.
+

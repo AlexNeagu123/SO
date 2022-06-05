@@ -23,8 +23,6 @@ int main(int argc, char *argv[]) {
 	} else if(argc == 3) {
 		general_case(argc, argv);
 	}
-	
-	
 }
 void special_case(int argc, char *argv[]) {
 	int flag_suprascrie = ask_suprascrie(argv[1]);

@@ -1,0 +1,2 @@
+Acest Program Abordeaza Scrierea comenzilor inlantuite din bash in cod C!
+Se folosesc doar canale anonime!

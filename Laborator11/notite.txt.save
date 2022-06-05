@@ -1,0 +1,50 @@
+Tipuri de comunicatie intre procese: 
+Pipe = Canal
+
+a) Memorie Partajata (Eg. Fisiere Mapate in Memorie)
+b) Schimb de mesaje 
+	- comunicatie locala (canale anonime/interne, canale cu nume/externe)
+	- comunicatie la distanta (socketuri)
+Intr-un canal de comunicatie, la un capat se scriu mesaje iar la celalalt capat se citesc. Se comporta ca o stiva. 
+Doua tipuri de canale: anonime, creat in memoria interna a sistemului 
+		       cu nume, au asociat cate un nume - reprezentat prin fisier de tip fifo, pastrat in sistemul de fisiere
+		       fisier fifo = pipe cu nume
+
+CANALE ANONIME
+
+int pipe(int *p). p - trebuie sa fie un vector. Dupa apelul functiei, vectorul asta va fi prelucrat astfel incat :  p[0] = fileDescriptor pentru fisierul citit, p[1] = fileDescriptor pentru capatul de scriere.
+ReturnValues - 0/-1.
+Aceste Canale Anonime pot fi utilizate doar pentru comunicatia intre procese inrudite prin fork/exec.
+De ce? Pai la apelul fork procesul fiu se cloneaza din procesul parinte, astfel avand la dispozitie valorile din p[0] si p[1]. 
+De asemenea, si in cazul apelurilor exec la fel are loc transmiterea descriptorilor canalului. Ne amintim ca descriptorii fisierelor deschise se mostenesc prin exec!
+Restrictie: Daca un proces inchide unul din capetele canalului anonim, NU mai exist nici o posibilitate de a-l redeschide
+
+Pentru scriere/citire se poate utiliza fie API-ul POSIX fie biblioteca STDIO!
+Care e faza cu canelele cu nume?
+
+Cum se creaza unul?
+int mkfifo(char *nume, int permisiuni)
+nume = numele fisierului de tip fifo
+permisiuni = permisiunile pt user, group, others al fisierului
+returnValues - 0/-1
+
+Ce se intampla? Se creaza un canal cu nume, dar FARA a fi deschis la ambele capete.
+Nota: Se poate folosi si primitiva mknod cu flagul S_IFIFO sau chiar in terminal comenzile mkfifo si mknod.
+Ce e misto la ele?
+Scrierea/Citirea din canal se efectueaza fix ca la fisierele obisnuite. Mai intai se deschide explicit fisierul la capatul de citire/scriere pentru a obtine descriptorul necesar.
+Apoi se scrie/citeste din el cu descriptorul respectiv comenzile de citire/scriere. La sfarsit se inchide descriptorul.
+Acest tip de canal nu este anonim, deci poate fi utilizat pentru comunicatie intre TOATE procesele care cunosc NUMELE fisierului fifo respectiv.
+
+Dechiderea unui fifo poate fi read-write, read-only, write-only. 
+Observatie Importanta: Deschiderea se face in mod blocant - daca un proces incearca sa deschida un capat al canalului - apelul functiei ramane blocat pana cand un alt proces va deschide celalalt capat!
+Deci trebuie neaparat sa se faca o sincronizare intre procese!
+Un astfel de canal cu nume este creat tot in memoria principala - NU pe disk!
+Informatia scrisa pe un fisier fifo se pastreaza din momentul scrierii pana in momentul cand ambele procese temina accesul la acel canal, inchizand capetele canalului. 
+Acest lucru are loc bineinteles doar daca anumita informatie a ramas in canal si nu a fost citita!
+
+Diferente canale cu nume vs canale anonime.
+
+- capetele canalelor cu nume trebuie deschise explicit
+- orice proces poate deschide un canal fifo, indiferent de legatura de rudenie
+- la canalele fifo, dupa ce un proces inchide un capat de canal il poate redeschide 
+
